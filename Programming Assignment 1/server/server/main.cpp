@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <WS2tcpip.h>
 #include <string>
 #include <sstream>
@@ -9,6 +10,7 @@
 #include <cstdlib>
 
 #define MAX_CLIENT_NUM 2
+#define ACCOUNTS_FILE "account_data.txt"
 #pragma comment (lib, "ws2_32.lib")
 
 using namespace std;
@@ -69,6 +71,14 @@ int main()
 
 	cout << "The server is ready to provide service.\n";
 	cout << "The maximum number of connections is "<< MAX_CLIENT_NUM <<".\n";
+
+	fstream account_data_file;
+	account_data_file.open(ACCOUNTS_FILE);
+	string account_data;
+	while (getline(account_data_file, account_data)) {
+		string username, password;
+
+	}
 
 	vector<Account*> accounts;
 	
