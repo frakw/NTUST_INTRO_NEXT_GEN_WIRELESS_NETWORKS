@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <ctype.h>
 
-#define DEFALT_MAX_CLIENT_NUM 2
+#define DEFALT_MAX_CLIENT_NUM 10
 #define DEFALT_ACCOUNTS_FILE "account_data.txt"
 #pragma comment (lib, "ws2_32.lib")
 
