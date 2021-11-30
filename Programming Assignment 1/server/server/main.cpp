@@ -8,14 +8,16 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <ctype.h>
 
-#define MAX_CLIENT_NUM 2
-#define ACCOUNTS_FILE "account_data.txt"
+#define DEFALT_MAX_CLIENT_NUM 2
+#define DEFALT_ACCOUNTS_FILE "account_data.txt"
 #pragma comment (lib, "ws2_32.lib")
 
 using namespace std;
 
 std::string judge_triangle(int[]);
+string shift_two_decrypt(string);
 
 class Account {
 public:
@@ -25,8 +27,40 @@ public:
 	bool logined = false;
 };
 
-int main()
+int main(int argc, char* argv[])
 {
+	int max_client_num = 10;
+	if (argc > 1) max_client_num = atoi(argv[1]);
+	else max_client_num = DEFALT_MAX_CLIENT_NUM;
+
+	fstream account_data_file;
+	if (argc > 2) {
+		account_data_file.open(argv[2]);
+	}
+	else {
+		account_data_file.open(DEFALT_ACCOUNTS_FILE);
+	}
+	
+	string account_data;
+	vector<Account*> accounts;
+
+	while (getline(account_data_file, account_data)) {
+		account_data.erase(std::remove(account_data.begin(), account_data.end(), ' '), account_data.end()); //移除所有空格
+		string username, password;
+		stringstream ss(account_data);
+		getline(ss, username, ',');
+		getline(ss, password);
+		accounts.push_back(new Account(username, shift_two_decrypt(password)));
+	}
+
+
+
+	//accounts.push_back(new Account("abc", "123"));
+	//accounts.push_back(new Account("frakw", "mew"));
+	map<int, Account*> login_map;
+
+
+
 	// Initialze winsock
 	WSADATA wsData;
 	WORD ver = MAKEWORD(2, 2);
@@ -70,21 +104,9 @@ int main()
 	bool running = true;
 
 	cout << "The server is ready to provide service.\n";
-	cout << "The maximum number of connections is "<< MAX_CLIENT_NUM <<".\n";
+	cout << "The maximum number of connections is "<< max_client_num <<".\n";
 
-	fstream account_data_file;
-	account_data_file.open(ACCOUNTS_FILE);
-	string account_data;
-	while (getline(account_data_file, account_data)) {
-		string username, password;
 
-	}
-
-	vector<Account*> accounts;
-	
-	accounts.push_back(new Account("abc", "123"));
-	accounts.push_back(new Account("frakw", "mew"));
-	map<int, Account*> login_map;
 	while (running)
 	{
 		// Make a copy of the master file descriptor set, this is SUPER important because
@@ -121,7 +143,7 @@ int main()
 				FD_SET(client, &master);
 
 				//cout << master.fd_count << endl;
-				if (master.fd_count-1 > MAX_CLIENT_NUM) {
+				if (master.fd_count-1 > max_client_num) {
 					string fullClientMsg = "Too many clients on the server. Wait a few minutes.\r\n";
 					send(client, fullClientMsg.c_str(), fullClientMsg.size() + 1, 0);
 					// Drop the client
@@ -300,6 +322,26 @@ string judge_triangle(int triangle[]) {
 	if (c * c < a * a + b * b) return "Acute Triangle\r\n";
 }
 
+string shift_two_decrypt(string input) {
+	for (int i = 0; i < input.length();i++) {
+		if (isdigit(input[i])) {
+			if (input[i] == '0') input[i] = '8';
+			else if (input[i] == '1') input[i] = '9';
+			else input[i] -= 2;
+		}
+		else if (isupper(input[i]) && isalpha(input[i])) {
+			if (input[i] == 'A') input[i] = 'Y';
+			else if (input[i] == 'B') input[i] = 'Z';
+			else input[i] -= 2;
+		}
+		else if (islower(input[i]) && isalpha(input[i])) {
+			if (input[i] == 'a') input[i] = 'y';
+			else if (input[i] == 'b') input[i] = 'z';
+			else input[i] -= 2;
+		}
+	}
+	return input;
+}
 
 // Send message to other clients, and definiately NOT the listening socket
 

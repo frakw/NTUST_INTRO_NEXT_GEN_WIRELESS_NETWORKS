@@ -1,8 +1,10 @@
 #include <iostream>
+#include <fstream>
 #include <string>
+#include <vector>
 #include <WS2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
-
+#define DEFAULT_TRIANGLE_FILE "triangle_data.txt"
 using namespace std;
 
 int main()
@@ -65,20 +67,42 @@ int main()
 		
 		if (!userInput.empty())		// Make sure the user has typed in something
 		{
-			// Send the text
-			int sendResult = send(sock, userInput.c_str(), userInput.size() + 1, 0);
-			if (sendResult != SOCKET_ERROR)
-			{
-				// Wait for response
-				ZeroMemory(buf, 4096);
-				int bytesReceived = recv(sock, buf, 4096, 0);
-				if (bytesReceived <= 0) break;
-				// Echo response to console
-				cout << "OUTPUT : " << string(buf, 0, bytesReceived);
+			vector<string> commands;
+			size_t found_txt = userInput.find("txt");
+			size_t found_SPO = userInput.find("SPO");
+			size_t found_LOGIN = userInput.find("LOGIN");
+			if (found_txt != string::npos && found_SPO != string::npos) {//txt¿…
+				fstream input_file;
+				input_file.open(userInput.substr(0, found_txt + 3));
+				string command;
+				while (getline(input_file, command)) {
+					commands.push_back(command);
+				}
 			}
-			else {
-				cout << "SOCKET ERROR!!!\n";
-				break;
+			else if(found_SPO != string::npos || found_LOGIN != string::npos){
+				commands.push_back(userInput);
+			}
+			else {//unknown command
+				cout << "OUTPUT : unknown command\n";
+				continue;
+			}
+
+			for (string command : commands) {
+				// Send the text
+				int sendResult = send(sock, command.c_str(), command.size() + 1, 0);
+				if (sendResult != SOCKET_ERROR)
+				{
+					// Wait for response
+					ZeroMemory(buf, 4096);
+					int bytesReceived = recv(sock, buf, 4096, 0);
+					if (bytesReceived <= 0) break;
+					// Echo response to console
+					cout << "OUTPUT : " << string(buf, 0, bytesReceived);
+				}
+				else {
+					cout << "SOCKET ERROR!!!\n";
+					break;
+				}
 			}
 		}
 
