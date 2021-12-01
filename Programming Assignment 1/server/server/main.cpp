@@ -55,8 +55,8 @@ int main(int argc, char* argv[])
 
 
 
-	//accounts.push_back(new Account("abc", "123"));
-	//accounts.push_back(new Account("frakw", "mew"));
+	accounts.push_back(new Account("abc", "123"));
+	accounts.push_back(new Account("frakw", "mew"));
 	map<int, Account*> login_map;
 
 
@@ -224,7 +224,7 @@ int main(int argc, char* argv[])
 									send(sock, login_from_other_client.c_str(), login_from_other_client.size() + 1, 0);
 									goto next_req;
 								}
-								accounts[i]->logined = true;
+								accounts[i]->logined = false; // false=>允許在不同client重複登入同帳號， true則反之
 								login_map.insert(make_pair(sock, accounts[i]));
 								break;
 							}
@@ -267,6 +267,16 @@ int main(int argc, char* argv[])
 
 						string triangle_result = judge_triangle(triangle);
 						send(sock, triangle_result.c_str(), triangle_result.size() + 1, 0);
+					}
+					else if (command == "logout") {
+						// Drop the client
+						if (login_map.find(sock) != login_map.end()) {
+							cout << "Close the TCP socket connection of client '" << login_map[sock]->username << "'.\n";
+							login_map[sock]->logined = false;
+							login_map.erase(sock);
+						}
+						closesocket(sock);
+						FD_CLR(sock, &master);
 					}
 					else {
 						string unknown_command = "unknown command\r\n";

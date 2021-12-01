@@ -74,19 +74,28 @@ int main()
 			if (found_txt != string::npos && found_SPO != string::npos) {//txt檔
 				fstream input_file;
 				input_file.open(userInput.substr(0, found_txt + 3));
+				if (!input_file.is_open()) {
+					cout << "OUTPUT : file not found\n";
+					continue;
+				}
 				string command;
 				while (getline(input_file, command)) {
 					commands.push_back(command);
 				}
+				commands.push_back("logout");//做完前面的就發出關閉連線的指令
 			}
-			else if(found_SPO != string::npos || found_LOGIN != string::npos){
+			else if(found_SPO != string::npos){
+				commands.push_back(userInput);
+				commands.push_back("logout");//做完前面的就發出關閉連線的指令
+			}
+			else if (found_LOGIN != string::npos) {
 				commands.push_back(userInput);
 			}
 			else {//unknown command
 				cout << "OUTPUT : unknown command\n";
 				continue;
 			}
-
+			
 			for (string command : commands) {
 				// Send the text
 				int sendResult = send(sock, command.c_str(), command.size() + 1, 0);
@@ -103,6 +112,10 @@ int main()
 					cout << "SOCKET ERROR!!!\n";
 					break;
 				}
+			}
+			if (commands.back() == "logout") {
+				cout << "OUTPUT : TCP connection closed\n";
+				break;
 			}
 		}
 
