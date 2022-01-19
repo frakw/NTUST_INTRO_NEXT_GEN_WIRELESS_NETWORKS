@@ -26,6 +26,7 @@ class DomainName {
 public:
 	DomainName() {}
 	DomainName(string _domain_name, string _ip) :domain_name(_domain_name), ip(_ip) {};
+	DomainName(string _domain_name, string _ip,int _recently_used) :domain_name(_domain_name), ip(_ip), recently_used(_recently_used){};
 	string domain_name = "";
 	string ip = "";
 	int recently_used = 0;
@@ -97,8 +98,9 @@ public:
 		cout << initial_msg;
 	}
 	void add_record(string _domain_name, string _ip) {
+		count++;
 		if (database.size() < max_record) {
-			database.insert(database.begin(), DomainName(_domain_name, _ip));
+			database.insert(database.begin(), DomainName(_domain_name, _ip,count));
 		}
 		else {
 			cout << "record database full! ";
@@ -112,7 +114,7 @@ public:
 					}
 				}
 				cout << "LRU replace index " + to_string(replace_index) + "  ip: " + database[replace_index].ip + "  domain name: " + database[replace_index].domain_name << endl;
-				database[replace_index] = DomainName(_domain_name, _ip);
+				database[replace_index] = DomainName(_domain_name, _ip, count);
 			}
 			else {
 				cout << "FIFO pop out last element "<< "  ip: " + database.back().ip + "  domain name: " + database.back().domain_name << endl;
@@ -123,9 +125,10 @@ public:
 		write_to_json();
 	}
 	string get_ip(string _domain_name) {
+		count++;
 		for (int i = 0; i < database.size(); i++) {
 			if (database[i].domain_name == _domain_name) {
-				database[i].recently_used++;
+				database[i].recently_used = count;
 				return "from Local DNS " + database[i].ip;
 			}
 		}
@@ -183,6 +186,7 @@ public:
 	string upper_dns_ip = "127.0.0.1";
 	int upper_dns_port = 7414;
 	int upper_dns_sock;
+	int count = 0;
 private:
 };
 
