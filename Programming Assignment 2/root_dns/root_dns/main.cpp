@@ -25,10 +25,12 @@ bool is_valid_domain_name(string str);
 class DomainName {
 public:
 	DomainName() {}
-	DomainName(string _domain_name, string _ip) :domain_name(_domain_name), ip(_ip) {};
+	DomainName(string _domain_name, string _ip) :domain_name(_domain_name), ip(_ip){};
+	DomainName(string _domain_name, string _ip,string _type) :domain_name(_domain_name), ip(_ip),type(_type) {};
 	string domain_name = "";
 	string ip = "";
 	int recently_used = 0;
+	string type = "A";
 private:
 };
 
@@ -45,15 +47,16 @@ public:
 		for (int i = 0; i < json.size(); i++) {
 			jsonxx::Object obj = json.get<jsonxx::Object>(i);
 			if (obj.get<jsonxx::String>("type") == "A") {
-				database.push_back(DomainName(obj.get<jsonxx::String>("domain_name"), obj.get<jsonxx::String>("ip_address")));
+				database.push_back(DomainName(obj.get<jsonxx::String>("domain_name"), obj.get<jsonxx::String>("ip_address"),"A"));
 			}
 			else if (obj.get<jsonxx::String>("type") == "CNAME") {
-				database.push_back(DomainName(obj.get<jsonxx::String>("alias"), obj.get<jsonxx::String>("canonical name")));
+				database.push_back(DomainName(obj.get<jsonxx::String>("alias"), obj.get<jsonxx::String>("canonical name"),"CNAME"));
 			}
 		}
 		if (has_upper_dns) {
 			init_upper_dns_connection();
 		}
+		cout << json.json() << endl;
 	}
 	void init_upper_dns_connection() {
 		string ipAddress = upper_dns_ip;			// IP Address of the server
@@ -126,11 +129,16 @@ public:
 		for (int i = 0; i < database.size(); i++) {
 			if (database[i].domain_name == _domain_name) {
 				database[i].recently_used++;
-				return database[i].ip;
+				if (database[i].type == "A") {
+					return database[i].ip;
+				}
+				else if(database[i].type == "CNAME"){
+					return get_ip(database[i].ip);
+				}
 			}
 		}
 		if (has_upper_dns) {
-			string ip = get_ip_from_root(_domain_name);
+			string ip = get_ip_from_upper_dns(_domain_name);
 			if (ip != "not found") {
 				add_record(_domain_name, ip);
 			}
@@ -140,7 +148,7 @@ public:
 			return "not found";
 		}
 	}
-	string get_ip_from_root(string _domain_name) {
+	string get_ip_from_upper_dns(string _domain_name) {
 		char buf[4096];
 		// Send the text
 		int sendResult = send(upper_dns_sock, _domain_name.c_str(), _domain_name.size() + 1, 0);
@@ -230,8 +238,9 @@ int main()
 	// this will be changed by the \quit command (see below, bonus not in video!)
 	bool running = true;
 
-	cout << "The server is ready to provide service.\n";
-	cout << "The maximum number of connections is " << max_client_num << ".\n";
+	cout << "Root DNS server running.\n";
+	//cout << "The server is ready to provide service.\n";
+	//cout << "The maximum number of connections is " << max_client_num << ".\n";
 
 
 	while (running)
@@ -281,7 +290,7 @@ int main()
 					// Send a welcome message to the connected client
 					string acceptMsg = "Accept " + to_string(master.fd_count - 1) + " connection.\r\n";
 					cout << acceptMsg;
-					string conectedtMsg = "Successful connect to server.\r\n";
+					string conectedtMsg = "Successful connect to Root DNS.\r\n";
 					send(client, conectedtMsg.c_str(), conectedtMsg.size() + 1, 0);
 				}
 
@@ -316,6 +325,7 @@ int main()
 							return_msg = "not valid domain name\r";
 						}
 						send(sock, return_msg.c_str(), return_msg.size() + 1, 0);
+						cout << "Send message: \"" << return_msg << "\" to client.\n";
 					}
 					else if (domain_name == "logout") {
 						// Drop the client

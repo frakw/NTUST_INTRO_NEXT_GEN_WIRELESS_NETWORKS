@@ -42,9 +42,10 @@ public:
 			jsonxx::Object obj = json.get<jsonxx::Object>(i);
 			database.push_back(DomainName(obj.get<jsonxx::String>("domain_name"), obj.get<jsonxx::String>("ip_address")));
 		}
-		if (has_upper_dns) {
+		if (have_upper_dns) {
 			init_upper_dns_connection();
 		}
+		cout << json.json() << endl;
 	}
 	void init_upper_dns_connection() {
 		string ipAddress = upper_dns_ip;			// IP Address of the server
@@ -57,6 +58,7 @@ public:
 		if (wsResult != 0)
 		{
 			cerr << "Can't start Winsock, Err #" << wsResult << endl;
+			have_upper_dns = false;
 			return;
 		}
 
@@ -66,6 +68,7 @@ public:
 		{
 			cerr << "Can't create socket, Err #" << WSAGetLastError() << endl;
 			WSACleanup();
+			have_upper_dns = false;
 			return;
 		}
 
@@ -82,6 +85,7 @@ public:
 			cerr << "Can't connect to server, Err #" << WSAGetLastError() << endl;
 			closesocket(upper_dns_sock);
 			WSACleanup();
+			have_upper_dns = false;
 			return;
 		}
 
@@ -94,23 +98,27 @@ public:
 	}
 	void add_record(string _domain_name, string _ip) {
 		if (database.size() < max_record) {
-			database.push_back(DomainName(_domain_name, _ip));
-			return;
-		}
-		if (LRU_open) {
-			int min_used = INT_MAX;
-			int replace_index = 0;
-			for (int i = 0; i < database.size(); i++) {
-				if (database[i].recently_used < min_used) {
-					min_used = database[i].recently_used;
-					replace_index = i;
-				}
-			}
-			database[replace_index] = DomainName(_domain_name, _ip);
+			database.insert(database.begin(), DomainName(_domain_name, _ip));
 		}
 		else {
-			database.insert(database.begin(), DomainName(_domain_name, _ip));
-			database.pop_back();
+			cout << "record database full! ";
+			if (LRU_open) {
+				int min_used = INT_MAX;
+				int replace_index = 0;
+				for (int i = 0; i < database.size(); i++) {
+					if (database[i].recently_used < min_used) {
+						min_used = database[i].recently_used;
+						replace_index = i;
+					}
+				}
+				cout << "LRU replace index " + to_string(replace_index) + "  ip: " + database[replace_index].ip + "  domain name: " + database[replace_index].domain_name << endl;
+				database[replace_index] = DomainName(_domain_name, _ip);
+			}
+			else {
+				cout << "FIFO pop out last element "<< "  ip: " + database.back().ip + "  domain name: " + database.back().domain_name << endl;
+				database.insert(database.begin(), DomainName(_domain_name, _ip));
+				database.pop_back();
+			}
 		}
 		write_to_json();
 	}
@@ -118,13 +126,14 @@ public:
 		for (int i = 0; i < database.size(); i++) {
 			if (database[i].domain_name == _domain_name) {
 				database[i].recently_used++;
-				return database[i].ip;
+				return "from Local DNS " + database[i].ip;
 			}
 		}
-		if (has_upper_dns) {
-			string ip = get_ip_from_root(_domain_name);
+		if (have_upper_dns) {
+			string ip = get_ip_from_upper_dns(_domain_name);
 			if (ip != "not found") {
 				add_record(_domain_name, ip);
+				ip = "from Root DNS " + ip;
 			}
 			return ip;
 		}
@@ -132,7 +141,7 @@ public:
 			return "not found";
 		}
 	}
-	string get_ip_from_root(string _domain_name) {
+	string get_ip_from_upper_dns(string _domain_name) {
 		char buf[4096];
 		// Send the text
 		int sendResult = send(upper_dns_sock, _domain_name.c_str(), _domain_name.size() + 1, 0);
@@ -170,7 +179,7 @@ public:
 	string json_file_name;
 	fstream json_file;
 	jsonxx::Array json;
-	bool has_upper_dns = true;
+	bool have_upper_dns = true;
 	string upper_dns_ip = "127.0.0.1";
 	int upper_dns_port = 7414;
 	int upper_dns_sock;
@@ -180,10 +189,7 @@ private:
 int main()
 {
 	int max_client_num = 10;
-	DNRecord db("./local_DNS_data_example.json", 5, false);
-	//cout << db.get_ip("www.google.com");
-	//cout << db.get_ip("www.taipower.com.tw");
-	//return 0;
+	DNRecord db("./local_DNS_data_example.json", 5, true);
 	// Initialze winsock
 	WSADATA wsData;
 	WORD ver = MAKEWORD(2, 2);
@@ -226,8 +232,9 @@ int main()
 	// this will be changed by the \quit command (see below, bonus not in video!)
 	bool running = true;
 
-	cout << "The server is ready to provide service.\n";
-	cout << "The maximum number of connections is " << max_client_num << ".\n";
+	cout << "Local DNS server running.\n";
+	//cout << "The server is ready to provide service.\n";
+	//cout << "The maximum number of connections is " << max_client_num << ".\n";
 
 
 	while (running)
@@ -277,7 +284,7 @@ int main()
 					// Send a welcome message to the connected client
 					string acceptMsg = "Accept " + to_string(master.fd_count - 1) + " connection.\r\n";
 					cout << acceptMsg;
-					string conectedtMsg = "Successful connect to server.\r\n";
+					string conectedtMsg = "Successful connect to Local DNS.\r\n";
 					send(client, conectedtMsg.c_str(), conectedtMsg.size() + 1, 0);
 				}
 
@@ -306,12 +313,13 @@ int main()
 					if (domain_name != "logout") {
 						string return_msg;
 						if (is_valid_domain_name(domain_name)) {
-							return_msg = db.get_ip(domain_name) + "\r";
+							return_msg = db.get_ip(domain_name);
 						}
 						else {
-							return_msg = "not valid domain name\r";
+							return_msg = "not valid domain name";
 						}
 						send(sock, return_msg.c_str(), return_msg.size() + 1, 0);
+						cout << "Send message: "<<'"' << return_msg << '"' <<" to client.\n";
 					}
 					else if (domain_name == "logout") {
 						// Drop the client
