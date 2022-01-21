@@ -29,7 +29,7 @@ public:
 	DomainName(string _domain_name, string _ip,int _recently_used) :domain_name(_domain_name), ip(_ip), recently_used(_recently_used){};
 	string domain_name = "";
 	string ip = "";
-	int recently_used = 0;
+	int recently_used = 0;//儲存上次被存取的操作次數(time_count)
 private:
 };
 
@@ -98,9 +98,9 @@ public:
 		cout << initial_msg;
 	}
 	void add_record(string _domain_name, string _ip) {
-		count++;
+		time_count++;
 		if (database.size() < max_record) {
-			database.insert(database.begin(), DomainName(_domain_name, _ip,count));
+			database.insert(database.begin(), DomainName(_domain_name, _ip, time_count));
 		}
 		else {
 			cout << "record database full! ";
@@ -114,7 +114,7 @@ public:
 					}
 				}
 				cout << "LRU replace index " + to_string(replace_index) + "  ip: " + database[replace_index].ip + "  domain name: " + database[replace_index].domain_name << endl;
-				database[replace_index] = DomainName(_domain_name, _ip, count);
+				database[replace_index] = DomainName(_domain_name, _ip, time_count);
 			}
 			else {
 				cout << "FIFO pop out last element "<< "  ip: " + database.back().ip + "  domain name: " + database.back().domain_name << endl;
@@ -125,10 +125,10 @@ public:
 		write_to_json();
 	}
 	string get_ip(string _domain_name) {
-		count++;
+		time_count++;
 		for (int i = 0; i < database.size(); i++) {
 			if (database[i].domain_name == _domain_name) {
-				database[i].recently_used = count;
+				database[i].recently_used = time_count;
 				return "from Local DNS " + database[i].ip;
 			}
 		}
@@ -186,7 +186,7 @@ public:
 	string upper_dns_ip = "127.0.0.1";
 	int upper_dns_port = 7414;
 	int upper_dns_sock;
-	int count = 0;
+	int time_count = 0; //紀錄操作次數
 private:
 };
 
